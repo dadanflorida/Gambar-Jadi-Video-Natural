@@ -150,19 +150,9 @@ if st.button('✨ BUAT VIDEO + NARASI + GERAKAN BIBIR', type='primary', use_cont
             status.info('Tahap 1/4: membuat suara narasi bahasa Indonesia…')
             asyncio.run(save_tts(narration.strip(), voice, tts_path)); bar.progress(10)
             status.info("Tahap 2/4: membuat video bergerak dari gambar...")
-
-base = generate_wan_with_retry(
-    img_path,
-    motion_prompt,
-    int(steps),
-    float(duration),
-    hf_token,
-    status,
-    bar
-)
-
-shutil.copyfile(base, base_path)
-bar.progress(45)
+            base = generate_wan_with_retry( img_path, motion_prompt, int(steps), float(duration), hf_token, status, bar) 
+            shutil.copyfile(base, base_path)
+            bar.progress(45)
             clip = VideoFileClip(base_path); video_len = clip.duration; clip.close()
             make_music(music_path, video_len)
             status.info('Membuat versi dengan narasi sebagai cadangan…')
