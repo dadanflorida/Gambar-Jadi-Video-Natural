@@ -1,4 +1,4 @@
-import os, tempfile, asyncio, shutil
+import os, tempfile, asyncio, shutil, time
 from pathlib import Path
 import streamlit as st
 from gradio_client import Client, handle_file
@@ -46,7 +46,67 @@ NEGATIVE = 'static image, frozen motion, flicker, blurry, distorted face, deform
 
 def new_client(space, token):
     return Client(space, hf_token=token.strip()) if token and token.strip() else Client(space)
+def generate_wan_with_retry(
+    img_path, motion_prompt, steps, duration, token, status, bar
+):
+    errors = []
 
+    for attempt in range(1, 3):
+        try:
+            if attempt == 1:
+                status.info(
+                    "Menghubungkan ke Wan 2.2 dan membuat video. "
+                    "Mohon tunggu..."
+                )
+                bar.progress(15)
+            else:
+                status.warning(
+                    "Percobaan pertama gagal. "
+                    "Menunggu 8 detik sebelum mencoba kembali..."
+                )
+                time.sleep(8)
+                status.info("Mencoba kembali menghubungkan ke Wan 2.2...")
+                bar.progress(20)
+
+            wan = new_client(
+                "zerogpu-aoti/wan2-2-fp8da-aoti-faster",
+                token
+            )
+
+            result = wan.predict(
+                handle_file(img_path),
+                motion_prompt,
+                int(steps),
+                NEGATIVE,
+                float(duration),
+                1.0,
+                1.0,
+                42,
+                True,
+                api_name="/generate_video"
+            )
+
+            base = result[0] if isinstance(result, (list, tuple)) else result
+
+            if isinstance(base, dict):
+                base = base.get("path") or base.get("name")
+
+            if not base or not os.path.exists(str(base)):
+                raise RuntimeError(
+                    f"Video tidak ditemukan pada hasil layanan: {result}"
+                )
+
+            return str(base)
+
+        except Exception as e:
+            errors.append(
+                f"Percobaan {attempt}/2: {type(e).__name__}: {e}"
+            )
+
+    raise RuntimeError(
+        "Wan 2.2 gagal setelah dua percobaan.\n\n"
+        + "\n\n".join(errors)
+    )
 async def save_tts(text, voice, path):
     await edge_tts.Communicate(text=text, voice=voice).save(path)
 
