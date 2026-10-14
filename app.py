@@ -149,13 +149,20 @@ if st.button('✨ BUAT VIDEO + NARASI + GERAKAN BIBIR', type='primary', use_cont
             with open(img_path,'wb') as f: f.write(image.getvalue())
             status.info('Tahap 1/4: membuat suara narasi bahasa Indonesia…')
             asyncio.run(save_tts(narration.strip(), voice, tts_path)); bar.progress(10)
-            status.info('Tahap 2/4: membuat video bergerak dari gambar…')
-            wan = new_client('zerogpu-aoti/wan2-2-fp8da-aoti-faster', hf_token)
-            result = wan.predict(handle_file(img_path), motion_prompt, int(steps), NEGATIVE, float(duration), 1.0, 1.0, 42, True, api_name='/generate_video')
-            base = result[0] if isinstance(result,(list,tuple)) else result
-            if isinstance(base,dict): base = base.get('path') or base.get('name')
-            if not base or not os.path.exists(str(base)): raise RuntimeError(f'Mesin Wan tidak mengembalikan video yang bisa dibaca: {result}')
-            shutil.copyfile(str(base), base_path); bar.progress(45)
+            status.info("Tahap 2/4: membuat video bergerak dari gambar...")
+
+base = generate_wan_with_retry(
+    img_path,
+    motion_prompt,
+    int(steps),
+    float(duration),
+    hf_token,
+    status,
+    bar
+)
+
+shutil.copyfile(base, base_path)
+bar.progress(45)
             clip = VideoFileClip(base_path); video_len = clip.duration; clip.close()
             make_music(music_path, video_len)
             status.info('Membuat versi dengan narasi sebagai cadangan…')
